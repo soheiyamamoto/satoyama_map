@@ -1,0 +1,17 @@
+{
+  "name": "里山調査地図",
+  "short_name": "里山地図",
+  "description": "里道・境界調査用のオフライン地図アプリ。地理院地図・地番表示・GPS・現場メモを通信なしで利用できます。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e8eef0",
+  "theme_color": "#1b5e20",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
