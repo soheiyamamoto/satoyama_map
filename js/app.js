@@ -109,8 +109,13 @@
           // (A) オンデマンド方式
           parcelIndex = idx;
           parcelMinZoom = idx.minZoom || 15;
+
+          // [1] 表示が変わるたびに更新。move も購読して発火漏れに備える（[4]）。
           map.on('moveend zoomend', updateParcelTiles);
-          updateParcelTiles();   // 初回
+          map.on('move', scheduleParcelUpdate);   // デバウンス経由
+
+          // [1] bounds が確定してから初回実行（初期取りこぼし対策）
+          map.whenReady(() => updateParcelTiles());
         } else if (idx && Array.isArray(idx.files) && idx.files.length) {
           // (B) 一括方式（文字列配列）
           loadParcelFilesInto(parcelLayer, idx.files.map((f) => PARCEL_DIR + f));
@@ -128,31 +133,75 @@
              bbox[3] < bounds.getSouth() || bbox[1] > bounds.getNorth());
   }
 
+  // [4] move連発を間引くデバウンス（120ms）。過剰fetchを防ぐ。
+  let _parcelUpdateTimer = null;
+  function scheduleParcelUpdate() {
+    if (_parcelUpdateTimer) return;
+    _parcelUpdateTimer = setTimeout(() => {
+      _parcelUpdateTimer = null;
+      updateParcelTiles();
+    }, 120);
+  }
+
+  // [5] 空ジオメトリ・空featureを除外して "M0 0" パスの生成を防ぐ
+  function hasUsableGeometry(feature) {
+    const g = feature && feature.geometry;
+    if (!g || !g.coordinates) return false;
+    // 座標配列を平坦化して1つでも数値があるか
+    const flat = g.coordinates.flat(Infinity);
+    return flat.length > 0 && flat.some((n) => typeof n === 'number' && isFinite(n));
+  }
+
   // 表示範囲に応じて、必要な分割ファイルを読み込み／不要なものを破棄
   function updateParcelTiles() {
-    if (!parcelIndex) return;
-    // ズームが浅いときは地番を出さない（筆が多すぎて重くなるため）
-    if (map.getZoom() < parcelMinZoom) {
-      parcelTiles.forEach((t) => map.removeLayer(t.layer));
-      parcelTiles.clear();
-      return;
+    try {
+      if (!parcelIndex || !map) return;
+
+      // ズームが浅いときは地番を出さない（筆が多すぎて重くなるため）
+      if (map.getZoom() < parcelMinZoom) {
+        parcelTiles.forEach((t) => map.removeLayer(t.layer));
+        parcelTiles.clear();
+        return;
+      }
+
+      const view = map.getBounds().pad(0.2);   // 少し広めに先読み
+
+      // 不要になったタイルを破棄（メモリ節約）
+      parcelTiles.forEach((t, name) => {
+        if (!bboxIntersects(t.bbox, view)) {
+          map.removeLayer(t.layer);
+          parcelTiles.delete(name);
+        }
+      });
+
+      // 表示範囲に重なる未読込ファイルを取得
+      parcelIndex.files.forEach((fi) => {
+        if (parcelTiles.has(fi.file)) return;
+        if (!bboxIntersects(fi.bbox, view)) return;
+
+        const layer = makeParcelLayer().addTo(map);
+        parcelTiles.set(fi.file, { layer, bbox: fi.bbox });   // 多重取得防止に先に登録
+
+        fetch(PARCEL_DIR + fi.file)
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+          .then((geo) => {
+            // [5] 空ジオメトリを除外してから addData
+            if (geo && Array.isArray(geo.features)) {
+              geo.features = geo.features.filter(hasUsableGeometry);
+            }
+            if (geo) layer.addData(geo);
+          })
+          .catch(() => {
+            // [3] 失敗したら確実に登録解除。次回の更新で再取得の機会を残す。
+            map.removeLayer(layer);
+            parcelTiles.delete(fi.file);
+          });
+      });
+    } catch (e) {
+      // [2] 1回の更新でこけても、次回の moveend で再挑戦できるよう握り潰す
+      // （必要ならデバッグ時のみ console.warn を有効化）
+      // console.warn('updateParcelTiles error:', e);
     }
-    const view = map.getBounds().pad(0.2);   // 少し広めに先読み
-    // 不要になったタイルを破棄（メモリ節約）
-    parcelTiles.forEach((t, name) => {
-      if (!bboxIntersects(t.bbox, view)) { map.removeLayer(t.layer); parcelTiles.delete(name); }
-    });
-    // 表示範囲に重なる未読込ファイルを取得
-    parcelIndex.files.forEach((fi) => {
-      if (parcelTiles.has(fi.file)) return;
-      if (!bboxIntersects(fi.bbox, view)) return;
-      const layer = makeParcelLayer().addTo(map);
-      parcelTiles.set(fi.file, { layer, bbox: fi.bbox });   // 多重取得防止に先に登録
-      fetch(PARCEL_DIR + fi.file)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((geo) => { if (geo) layer.addData(geo); })
-        .catch(() => { map.removeLayer(layer); parcelTiles.delete(fi.file); });
-    });
   }
 
   // 指定レイヤーへ複数ファイルをまとめて読み込む（一括/単一方式用）
@@ -160,7 +209,12 @@
     urls.forEach((url) => {
       fetch(url)
         .then((r) => (r.ok ? r.json() : null))
-        .then((geo) => { if (geo) layer.addData(geo); })
+        .then((geo) => {
+          if (geo && Array.isArray(geo.features)) {
+            geo.features = geo.features.filter(hasUsableGeometry);
+          }
+          if (geo) layer.addData(geo);
+        })
         .catch(() => { /* 一部欠落しても他は表示 */ });
     });
   }
