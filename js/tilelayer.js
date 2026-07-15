@@ -25,21 +25,18 @@ const OfflineTileLayer = L.TileLayer.extend({
         tile.onerror = () => done(null, tile);
         return;
       }
-      if (navigator.onLine) {
-        // 未保存だがオンライン → 取得して表示（閲覧用、自動キャッシュはしない）
-        // CORS属性は付けない: 表示のみでピクセル読み取り(canvas readback)を
-        // 行わないため不要。付けるとCDNのCORSヘッダーが不安定な場合に
-        // 読み込み自体が失敗し、タイルが灰色プレースホルダに置き換わる
-        // （Chrome等で再現）。
-        tile.src = url;
-        tile.onload = () => done(null, tile);
-        tile.onerror = () => { tile.src = this._blankUrl; tile.classList.add('tile-missing'); done(null, tile); };
-      } else {
-        // 未保存かつオフライン → プレースホルダ
-        tile.src = this._blankUrl;
-        tile.classList.add('tile-missing');
-        done(null, tile);
-      }
+      // 未保存 → 常に取得を試みる。
+      // ブラウザのオンライン状態フラグは macOS/Chrome 等で実際の接続性と
+      // 無関係に false を返すことがあり、事前分岐に使うと取得を試みずに
+      // 全タイルがプレースホルダ化して地図がグレー一色になる。事前判定はせず、
+      // 失敗したら onerror で初めてプレースホルダに落とす（本当にオフラインなら
+      // 取得が失敗するため、オフライン時の挙動は従来と同等）。
+      // CORS属性は付けない: 表示のみでピクセル読み取り(canvas readback)を
+      // 行わないため不要。付けるとCDNのCORSヘッダーが不安定な場合に
+      // 読み込み自体が失敗し、タイルが灰色プレースホルダに置き換わる。
+      tile.src = url;
+      tile.onload = () => done(null, tile);
+      tile.onerror = () => { tile.src = this._blankUrl; tile.classList.add('tile-missing'); done(null, tile); };
     }).catch(() => { tile.src = this._blankUrl; done(null, tile); });
 
     return tile;
