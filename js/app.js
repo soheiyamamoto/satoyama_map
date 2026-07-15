@@ -14,7 +14,7 @@
   const DEFAULT_ZOOM = 16;
 
   // ---- 状態 ----
-  let map, baseLayer, parcelLayer, meMarker, meAccuracy;
+  let map, baseLayer, parcelLayer, meMarker, meAccuracy, parcelRenderer;
   let following = false;
   let watchId = null;
   const memoMarkers = new Map();
@@ -41,6 +41,8 @@
       minZoom: 5,
     });
     L.control.zoom({ position: 'topleft' }).addTo(map);
+
+    parcelRenderer = L.canvas({ padding: 0.5 });
 
     baseLayer = offlineTileLayer(GSI_URL, {
       attribution: GSI_ATTR,
@@ -97,7 +99,7 @@
   }
 
   function makeParcelLayer() {
-    return L.geoJSON(null, { style: PARCEL_STYLE, onEachFeature: parcelTooltip });
+    return L.geoJSON(null, { style: PARCEL_STYLE, onEachFeature: parcelTooltip, renderer: parcelRenderer });
   }
 
   function loadParcelLayer() {
