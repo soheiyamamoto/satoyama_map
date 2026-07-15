@@ -27,9 +27,10 @@ const OfflineTileLayer = L.TileLayer.extend({
       }
       if (navigator.onLine) {
         // 未保存だがオンライン → 取得して表示（閲覧用、自動キャッシュはしない）
-        // crossOrigin は付けない: 表示のみでピクセル読み取りは行わないため不要。
-        // 付けるとCDNのCORSヘッダーが不安定な場合に読み込み自体が失敗し、
-        // タイルが灰色プレースホルダに置き換わってしまう（Chrome等で再現）。
+        // CORS属性は付けない: 表示のみでピクセル読み取り(canvas readback)を
+        // 行わないため不要。付けるとCDNのCORSヘッダーが不安定な場合に
+        // 読み込み自体が失敗し、タイルが灰色プレースホルダに置き換わる
+        // （Chrome等で再現）。
         tile.src = url;
         tile.onload = () => done(null, tile);
         tile.onerror = () => { tile.src = this._blankUrl; tile.classList.add('tile-missing'); done(null, tile); };
