@@ -3,7 +3,7 @@
  *  ・アプリシェル（HTML/CSS/JS/ライブラリ/アイコン）を precache
  *  ・地図タイルは IndexedDB 側で管理するため、ここではキャッシュしない
  * ===================================================================== */
-const CACHE = 'satoyama-shell-v2';
+const CACHE = 'satoyama-shell-v3';
 const SHELL = [
   './',
   './index.html',
@@ -48,16 +48,37 @@ self.addEventListener('fetch', (e) => {
   // 地図タイルは SW でキャッシュしない（IndexedDB が担当）。ネットへ素通し。
   if (url.hostname.includes('cyberjapandata.gsi.go.jp')) return;
 
-  // アプリシェル: キャッシュ優先（オフラインでも起動可能に）
-  if (url.origin === self.location.origin) {
+  if (url.origin !== self.location.origin) return;
+
+  // 地番データ（data/parcels/*.geojson）: キャッシュ優先。
+  // 一度オンラインで表示した範囲を自動キャッシュし、以後はオフラインでも即返す。
+  if (/\/data\/parcels\/.+\.geojson$/.test(url.pathname)) {
     e.respondWith(
       caches.match(e.request).then((hit) =>
         hit || fetch(e.request).then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
           return res;
-        }).catch(() => caches.match('./index.html'))
+        })
       )
     );
+    return;
   }
+
+  // アプリシェル（app.js / index.html / index.json 等）:
+  // stale-while-revalidate。キャッシュを即返しつつ裏でネット取得して更新する。
+  // → cache-first による「更新しても古いコードが配信され続ける」固定化を解消。
+  e.respondWith(
+    caches.open(CACHE).then((c) =>
+      c.match(e.request).then((hit) => {
+        const fetching = fetch(e.request).then((res) => {
+          c.put(e.request, res.clone()).catch(() => {});
+          return res;
+        }).catch(() => hit || caches.match('./index.html'));
+        // キャッシュがあれば即返し、fetching は裏で走らせて次回に反映。
+        // キャッシュが無ければネット取得を待つ。
+        return hit || fetching;
+      })
+    )
+  );
 });
