@@ -19,6 +19,7 @@
   let watchId = null;
   const memoMarkers = new Map();
   let saving = false;
+  let satomichiMode = false;   // 里道モード（筆の塗りを強調し隙間を視認しやすくする）
 
   // ---- DOM ----
   const $ = (id) => document.getElementById(id);
@@ -50,6 +51,7 @@
       maxZoom: 21,
     }).addTo(map);
 
+    restoreSatomichiMode();   // 里道モードの復元（loadParcelLayerより前＝初回描画から反映）
     loadParcelLayer();   // 地番レイヤー（あれば）
     restoreLastView();   // 前回表示位置の復元
     bindUI();
@@ -80,8 +82,15 @@
   //    (B) 一括方式      : {files:["a.geojson", ...]}  → 全ファイルを読み込む
   //    (C) 単一ファイル  : index.json 無し → data/parcels.geojson を読む（後方互換）
   // =====================================================================
-  const PARCEL_STYLE = { color: '#d84315', weight: 1.0, fillColor: '#ff7043', fillOpacity: 0.06 };
+  const PARCEL_STROKE = { color: '#d84315', weight: 1.0, fillColor: '#ff7043' };
+  const PARCEL_FILL_NORMAL = 0.06;
+  const PARCEL_FILL_SATOMICHI = 0.35;   // 里道モード: 筆を面として強調し、塗られない隙間を浮かび上がらせる
   const PARCEL_DIR = 'data/parcels/';
+
+  // 現在のモードを反映したスタイルを返す（features引数はLeafletのstyle関数仕様に合わせるが未使用）
+  function parcelStyle() {
+    return { ...PARCEL_STROKE, fillOpacity: satomichiMode ? PARCEL_FILL_SATOMICHI : PARCEL_FILL_NORMAL };
+  }
 
   // ondemand用の状態
   const parcelTiles = new Map();   // file名 -> { layer, bbox } 読込済みの管理
@@ -99,7 +108,22 @@
   }
 
   function makeParcelLayer() {
-    return L.geoJSON(null, { style: PARCEL_STYLE, onEachFeature: parcelTooltip, renderer: parcelRenderer });
+    // style に関数を渡すことで、後からondemandで読み込まれるタイルにも
+    // その時点の satomichiMode が反映される（追加時に都度呼び出される）。
+    return L.geoJSON(null, { style: parcelStyle, onEachFeature: parcelTooltip, renderer: parcelRenderer });
+  }
+
+  // 里道モード切り替え時、既に読み込み済みの全レイヤーへ即座にスタイルを反映
+  function applyParcelStyleToAll() {
+    if (parcelLayer) parcelLayer.setStyle(parcelStyle);
+    parcelTiles.forEach((t) => t.layer.setStyle(parcelStyle));
+  }
+
+  function setSatomichiMode(on) {
+    satomichiMode = on;
+    $('btn-satomichi').classList.toggle('active', on);
+    applyParcelStyleToAll();
+    try { localStorage.setItem('satomichiMode', JSON.stringify(on)); } catch (_) {}
   }
 
   function loadParcelLayer() {
@@ -328,6 +352,8 @@
       if (meMarker) { setFollowing(true); map.setView(meMarker.getLatLng(), Math.max(map.getZoom(), 16)); }
       else toast('現在地をまだ取得できていません');
     });
+
+    $('btn-satomichi').addEventListener('click', () => setSatomichiMode(!satomichiMode));
 
     $('btn-memo').addEventListener('click', openMemoSheet);
     $('btn-list').addEventListener('click', openListSheet);
@@ -563,6 +589,17 @@
     baseLayer.redraw();
     closeSheet('save-sheet');
     toast(failed ? `保存完了（${total - failed}枚成功・${failed}枚失敗）` : `地図を保存しました（${total}枚）`);
+  }
+
+  // =====================================================================
+  // 里道モードの復元（保存はトグル操作時に setSatomichiMode 内で行う）
+  // =====================================================================
+  function restoreSatomichiMode() {
+    try {
+      const v = JSON.parse(localStorage.getItem('satomichiMode'));
+      satomichiMode = v === true;
+    } catch (_) {}
+    $('btn-satomichi').classList.toggle('active', satomichiMode);
   }
 
   // =====================================================================
