@@ -37,7 +37,7 @@
       zoomControl: false,
       attributionControl: true,
       tap: true,
-      maxZoom: 18,
+      maxZoom: 21,
       minZoom: 5,
     });
     L.control.zoom({ position: 'topleft' }).addTo(map);
@@ -47,7 +47,7 @@
     baseLayer = offlineTileLayer(GSI_URL, {
       attribution: GSI_ATTR,
       maxNativeZoom: 18,
-      maxZoom: 18,
+      maxZoom: 21,
     }).addTo(map);
 
     loadParcelLayer();   // 地番レイヤー（あれば）
