@@ -75,7 +75,7 @@ html, body {
 }
 .finder.too-wide .finder-info { background: var(--red); }
 
-/* ===== 右下 FAB（現在地に戻る） ===== */
+/* ===== 右下 FAB（現在地に戻る／里道モード） ===== */
 .fab-stack {
   position: absolute; right: 14px; z-index: 900;
   bottom: calc(var(--safe-bottom) + 96px);
@@ -91,6 +91,8 @@ html, body {
 }
 .fab:active { transform: scale(.94); }
 .fab-locate.active { background: var(--blue); color: #fff; }
+.fab-satomichi { color: var(--amber); }
+.fab-satomichi.active { background: var(--amber); color: #fff; }
 
 /* ===== 下部アクションバー ===== */
 .actionbar {
