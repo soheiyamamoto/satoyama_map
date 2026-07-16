@@ -7,6 +7,7 @@
   // ---- 設定値 ----
   const GSI_URL = 'https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png';
   const GSI_ATTR = '地理院タイル（国土地理院）';
+  const HILLSHADE_URL = 'https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png';
   const SAVE_ZOOMS = [15, 16, 17, 18];   // 一括保存するズームレベル
   const MAX_TILES = 600;                  // 過負荷防止：1回の保存上限枚数
   const WARN_TILES = 450;                 // 警告ライン
@@ -14,12 +15,13 @@
   const DEFAULT_ZOOM = 16;
 
   // ---- 状態 ----
-  let map, baseLayer, parcelLayer, meMarker, meAccuracy, parcelRenderer;
+  let map, baseLayer, parcelLayer, meMarker, meAccuracy, parcelRenderer, terrainLayer;
   let following = false;
   let watchId = null;
   const memoMarkers = new Map();
   let saving = false;
   let satomichiMode = false;   // 里道モード（筆の塗りを強調し隙間を視認しやすくする）
+  let terrainMode = false;     // 地形モード（陰影起伏図を半透明オーバーレイ表示）
 
   // ---- DOM ----
   const $ = (id) => document.getElementById(id);
@@ -51,7 +53,22 @@
       maxZoom: 21,
     }).addTo(map);
 
+    // 重ね順: 背景地形図(tilePane, z200) < 陰影起伏図(hillshadePane, z350) < 地番(overlayPane, z400)
+    // 専用paneのzIndexで担保するため、addTo順やレイヤー種別に依存しない。
+    map.createPane('hillshadePane');
+    map.getPane('hillshadePane').style.zIndex = 350;
+    // 半透明オーバーレイはオンライン専用（通常のL.tileLayer）。
+    // オフライン保存(IndexedDB)の対象に含めるとストレージが膨らむため対象外とする。
+    terrainLayer = L.tileLayer(HILLSHADE_URL, {
+      attribution: GSI_ATTR,
+      maxNativeZoom: 16,
+      maxZoom: 21,
+      opacity: 0.5,
+      pane: 'hillshadePane',
+    });
+
     restoreSatomichiMode();   // 里道モードの復元（loadParcelLayerより前＝初回描画から反映）
+    restoreTerrainMode();     // 地形モードの復元
     loadParcelLayer();   // 地番レイヤー（あれば）
     restoreLastView();   // 前回表示位置の復元
     bindUI();
@@ -124,6 +141,16 @@
     $('btn-satomichi').classList.toggle('active', on);
     applyParcelStyleToAll();
     try { localStorage.setItem('satomichiMode', JSON.stringify(on)); } catch (_) {}
+  }
+
+  // 地形モード（陰影起伏図オーバーレイ）の切り替え。
+  // OFF時はレイヤーごとmapから外すため、非表示中はタイル取得も発生しない。
+  function setTerrainMode(on) {
+    terrainMode = on;
+    $('btn-terrain').classList.toggle('active', on);
+    if (on) { if (!map.hasLayer(terrainLayer)) terrainLayer.addTo(map); }
+    else { map.removeLayer(terrainLayer); }
+    try { localStorage.setItem('terrainMode', JSON.stringify(on)); } catch (_) {}
   }
 
   function loadParcelLayer() {
@@ -354,6 +381,7 @@
     });
 
     $('btn-satomichi').addEventListener('click', () => setSatomichiMode(!satomichiMode));
+    $('btn-terrain').addEventListener('click', () => setTerrainMode(!terrainMode));
 
     $('btn-memo').addEventListener('click', openMemoSheet);
     $('btn-list').addEventListener('click', openListSheet);
@@ -600,6 +628,20 @@
       satomichiMode = v === true;
     } catch (_) {}
     $('btn-satomichi').classList.toggle('active', satomichiMode);
+  }
+
+  // =====================================================================
+  // 地形モード（陰影起伏図）の復元（デフォルトOFF）
+  // =====================================================================
+  function restoreTerrainMode() {
+    let on = false;
+    try {
+      const v = JSON.parse(localStorage.getItem('terrainMode'));
+      on = v === true;
+    } catch (_) {}
+    terrainMode = on;
+    $('btn-terrain').classList.toggle('active', on);
+    if (on) terrainLayer.addTo(map);
   }
 
   // =====================================================================

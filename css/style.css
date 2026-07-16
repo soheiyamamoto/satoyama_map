@@ -93,6 +93,8 @@ html, body {
 .fab-locate.active { background: var(--blue); color: #fff; }
 .fab-satomichi { color: var(--amber); }
 .fab-satomichi.active { background: var(--amber); color: #fff; }
+.fab-terrain { color: var(--green-light); }
+.fab-terrain.active { background: var(--green-light); color: #fff; }
 
 /* ===== 下部アクションバー ===== */
 .actionbar {
