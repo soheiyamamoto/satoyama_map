@@ -89,6 +89,16 @@
     });
     // ユーザーが地図をドラッグしたら追従を解除
     map.on('dragstart', () => setFollowing(false));
+
+    // iOS PWA(スタンドアロン起動)対策: 起動直後はビューポートが確定しきって
+    // おらず、Leafletがコンテナサイズを誤って測り画面下部がグレーに切れる
+    // ことがある。複数のタイミングで invalidateSize() を呼び直して確実にする。
+    setTimeout(() => map.invalidateSize(), 100);
+    window.addEventListener('load', () => map.invalidateSize());
+    window.addEventListener('resize', () => map.invalidateSize());
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) map.invalidateSize();
+    });
   }
 
   // =====================================================================
