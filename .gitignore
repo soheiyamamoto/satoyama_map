@@ -1,0 +1,6 @@
+# macOS
+.DS_Store
+
+# 分割元の巨大GeoJSON（数百MB級）。data/parcels/ への分割後は不要で、
+# リポジトリ肥大化を避けるためコミットしない。
+data/source/
