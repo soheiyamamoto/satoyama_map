@@ -22,13 +22,23 @@ html, body {
   background: #e8eef0;
   -webkit-user-select: none; user-select: none;
 }
-/* iOS Safariの動的ツールバー(アドレスバー等)による高さ変動に追従させる。
-   100dvh未対応ブラウザは上のheight:100%のままフォールバックする。 */
-@supports (height: 100dvh) {
-  html, body { height: 100dvh; }
-}
 
-#map { position: absolute; inset: 0; z-index: 0; background: #dfe7ea; }
+/* #map の高さは html,body 経由(inset:0)ではなく、viewport単位で直接指定する。
+   iOSはPWAスタンドアロン起動時にも、Safari通常表示のツールバー分を差し引いた
+   古いビューポート高さを window.innerHeight 等で報告し続けることがあり、
+   その場合 inset:0（親要素基準）では下部が空白のまま残る。
+   height:100dvh は viewport 単位のため親要素の計算結果に依存せず、
+   実際に描画可能な高さを直接反映できる。 */
+#map {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 100%;
+  background: #dfe7ea;
+  z-index: 0;
+}
+@supports (height: 100dvh) {
+  #map { height: 100dvh; }
+}
 
 .hidden { display: none !important; }
 
