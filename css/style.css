@@ -22,6 +22,11 @@ html, body {
   background: #e8eef0;
   -webkit-user-select: none; user-select: none;
 }
+/* iOS Safariの動的ツールバー(アドレスバー等)による高さ変動に追従させる。
+   100dvh未対応ブラウザは上のheight:100%のままフォールバックする。 */
+@supports (height: 100dvh) {
+  html, body { height: 100dvh; }
+}
 
 #map { position: absolute; inset: 0; z-index: 0; background: #dfe7ea; }
 
