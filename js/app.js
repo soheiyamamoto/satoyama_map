@@ -31,6 +31,31 @@
   const toastEl = $('toast');
 
   // =====================================================================
+  // #map の高さ同期（iOS PWA対策）
+  //   100dvhでも一部のiOS実機ではPWAスタンドアロン起動時に灰色の帯が
+  //   解消しないケースがあったため、window.visualViewport.height を
+  //   #map へ直接反映する。visualViewport非対応環境ではCSSのdvhへ
+  //   フォールバックする（このブロック自体が何もしない）。
+  // =====================================================================
+  let _syncMapHeightScheduled = false;
+  function syncMapHeight() {
+    const vv = window.visualViewport;
+    if (vv) {
+      $('map').style.height = vv.height + 'px';
+    }
+    if (map) map.invalidateSize();
+  }
+  // visualViewportのresize/scrollは連続発火しうるため、1フレームに1回へ間引く
+  function scheduleSyncMapHeight() {
+    if (_syncMapHeightScheduled) return;
+    _syncMapHeightScheduled = true;
+    requestAnimationFrame(() => {
+      _syncMapHeightScheduled = false;
+      syncMapHeight();
+    });
+  }
+
+  // =====================================================================
   // 初期化
   // =====================================================================
   function init() {
@@ -94,11 +119,21 @@
     // おらず、Leafletがコンテナサイズを誤って測り画面下部がグレーに切れる
     // ことがある。複数のタイミングで invalidateSize() を呼び直して確実にする。
     setTimeout(() => map.invalidateSize(), 100);
-    window.addEventListener('load', () => map.invalidateSize());
     window.addEventListener('resize', () => map.invalidateSize());
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) map.invalidateSize();
     });
+
+    // visualViewport対応環境では、#mapの高さをvisualViewport.heightへ
+    // 直接同期する（100dvhでも解消しなかったPWAの灰色帯対策）。
+    // 非対応環境（Android等の一部ブラウザ）では window.visualViewport が
+    // undefinedになるだけで、CSSのdvhフォールバックがそのまま効く。
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', scheduleSyncMapHeight);
+      window.visualViewport.addEventListener('scroll', scheduleSyncMapHeight);
+    }
+    window.addEventListener('load', syncMapHeight);
+    syncMapHeight();   // 初回実行
   }
 
   // =====================================================================
