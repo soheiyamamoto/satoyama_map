@@ -28,6 +28,11 @@
     </div>
   </header>
 
+  <!-- 更新バナー：新しいバージョンが有効化された時のみ表示 -->
+  <div id="update-banner" class="update-banner hidden" role="button" tabindex="0">
+    <span>新しいバージョンがあります。タップで更新</span>
+  </div>
+
   <!-- 範囲指定（ファインダー）枠：保存モード時のみ表示 -->
   <div id="finder" class="finder hidden" aria-hidden="true">
     <div class="finder-box"></div>
@@ -107,6 +112,19 @@
       <button id="save-start" class="action action-primary full">この範囲を保存する</button>
       <button id="save-cancel" class="action full hidden">中止する</button>
       <p class="sheet-note">枠内の地図（ズーム15〜18）を端末に保存します。広すぎる場合は地図を拡大してください。</p>
+    </div>
+  </div>
+
+  <!-- ===== 更新のお知らせモーダル ===== -->
+  <div id="whatsnew-sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-label="更新のお知らせ">
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <h2>新しくなりました</h2>
+        <button class="sheet-close" data-close="whatsnew-sheet" aria-label="閉じる">✕</button>
+      </div>
+      <p class="sheet-sub" id="whatsnew-date"></p>
+      <ul id="whatsnew-notes" class="whatsnew-notes"></ul>
+      <button class="action action-primary full" data-close="whatsnew-sheet">閉じる</button>
     </div>
   </div>
 

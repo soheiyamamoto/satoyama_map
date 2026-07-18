@@ -16,6 +16,7 @@ const SHELL = [
   './vendor/images/marker-shadow.png',
   './vendor/images/layers.png',
   './manifest.webmanifest',
+  './version.json',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',

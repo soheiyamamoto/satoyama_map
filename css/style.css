@@ -66,6 +66,19 @@ html, body {
 .status-chip.ok   { color: var(--green); }
 .status-chip.off  { color: var(--red); }
 
+/* ===== 更新バナー ===== */
+.update-banner {
+  /* left は地図左上のズームコントロール（.leaflet-top.leaflet-left、同じ top 位置）と
+     重ならないよう、その右端より内側に余白を空けて開始する */
+  position: absolute; top: calc(var(--safe-top) + 52px); left: 56px; right: 8px;
+  z-index: 1500;
+  background: var(--blue); color: #fff;
+  border-radius: 12px; padding: 10px 16px;
+  font-size: 14px; font-weight: 700; text-align: center;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
 /* ===== ファインダー枠 ===== */
 .finder {
   position: absolute; inset: 0; z-index: 800;
@@ -199,6 +212,10 @@ html, body {
 .progress-bar { height: 100%; width: 0%; background: var(--green-light); transition: width .15s; }
 .progress-text { text-align: center; font-size: 15px; font-weight: 700; margin: 8px 0 0; }
 .sheet-note { font-size: 12px; color: #888; margin: 14px 0 0; line-height: 1.5; }
+
+/* ===== 更新のお知らせ 箇条書き ===== */
+.whatsnew-notes { margin: 0 0 18px; padding-left: 20px; font-size: 15px; line-height: 1.7; }
+.whatsnew-notes li { margin-bottom: 4px; }
 .save-estimate-warn { color: var(--red); font-weight: 700; }
 .save-estimate-ok { color: var(--green); font-weight: 700; }
 
