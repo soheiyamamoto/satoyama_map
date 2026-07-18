@@ -97,6 +97,7 @@
     loadParcelLayer();   // 地番レイヤー（あれば）
     restoreLastView();   // 前回表示位置の復元
     bindUI();
+    setTimeout(loadWhatsNew, 1000);   // 地図描画を優先し、少し遅らせてお知らせを確認
 
     // 開発確認用: localhost のときだけ map をデバッグ公開（本番では無効）
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
@@ -723,10 +724,93 @@
       ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   }
 
+  // =====================================================================
+  // 更新のお知らせモーダル（version.json）
+  //   前回見たバージョン（localStorage）と現在のバージョンが違う時だけ、
+  //   平易な言葉で変更点を1回だけ知らせる。初回起動時は記録のみ行い、
+  //   使ったことのない人に「新しくなりました」は見せない。
+  // =====================================================================
+  function loadWhatsNew() {
+    fetch('version.json').then((r) => (r.ok ? r.json() : null)).then((info) => {
+      if (!info || !info.version) return;
+      let last = null;
+      try { last = localStorage.getItem('lastSeenVersion'); } catch (_) {}
+      if (last === null) {
+        try { localStorage.setItem('lastSeenVersion', info.version); } catch (_) {}
+        return;
+      }
+      if (last === info.version) return;
+      $('whatsnew-date').textContent = info.date || '';
+      $('whatsnew-notes').innerHTML = (info.notes || []).map((n) => `<li>${escapeHtml(n)}</li>`).join('');
+      openSheet('whatsnew-sheet');
+      try { localStorage.setItem('lastSeenVersion', info.version); } catch (_) {}
+    }).catch(() => {});
+  }
+
+  // =====================================================================
+  // Service Worker 更新の検知・控えめな通知・反映
+  //   sw.js は skipWaiting()/clients.claim() 済みのため新SWは待たずに
+  //   有効化されるが、開きっぱなしのタブではブラウザが自発的に更新確認
+  //   する機会（ナビゲーション）がほぼ無い。ここで能動的に確認を促し、
+  //   有効化を検知したらバナーで知らせ、ユーザー操作かアプリ再開の
+  //   自然なタイミングでリロードして反映する（突然のリロードはしない）。
+  // =====================================================================
+  // このページ読み込み時点で既にSWに制御されていたか。
+  // false の場合、直後に来る最初の controllerchange は「新規インストール」
+  // であって「更新」ではないため無視する（誤ってバナーを出さないためのガード）。
+  let swUpdateArmed = !!navigator.serviceWorker.controller;
+  let swUpdatePending = false;
+  // バナーをフォアグラウンドで一度でも表示できたか。
+  // controllerchangeがバックグラウンド中に発火した場合、ユーザーは
+  // まだバナーを一度も見ていないため、次にvisibleへ戻った瞬間に
+  // 即リロードすると「気づかないまま再読み込みされた」体験になる。
+  // その復帰では表示するだけに留め、確認済みにしてから反映対象にする。
+  let bannerAcknowledged = false;
+
+  function setupSwUpdateWatcher(reg) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!swUpdateArmed) { swUpdateArmed = true; return; }
+      swUpdatePending = true;
+      $('update-banner').classList.remove('hidden');
+      // 検知した瞬間フォアグラウンドで見ているなら、その場でバナーが
+      // 目に入るため確認済み扱いにする（従来通り即反映の対象になる）。
+      if (!document.hidden) bannerAcknowledged = true;
+    });
+
+    const checkForUpdate = () => reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      checkForUpdate();
+      if (swUpdatePending && !bannerAcknowledged) {
+        // バックグラウンド中に検知された更新を、この復帰で初めて見せる。
+        // このタイミングではまだ反映せず、次の復帰かタップから対象にする。
+        bannerAcknowledged = true;
+        return;
+      }
+      applyPendingUpdateIfSafe();
+    });
+    setInterval(checkForUpdate, 30 * 60 * 1000);
+
+    $('update-banner').addEventListener('click', () => location.reload());
+  }
+
+  // シートが1つでも開いている間（地図保存の進捗表示中も save-sheet が
+  // 開いたままなので、この判定だけで両方のケースをまとめてガードできる）、
+  // および現在地に追従中（現地調査で歩きながら地図を見ている状態）は
+  // リロードを見送り、作業を中断させない。バナーは表示したまま次の機会を待つ。
+  function applyPendingUpdateIfSafe() {
+    if (!swUpdatePending) return;
+    if (document.querySelector('.sheet:not(.hidden)')) return;
+    if (following) return;
+    location.reload();
+  }
+
   // ---- Service Worker 登録 ----
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () =>
-      navigator.serviceWorker.register('sw.js').catch(() => {}));
+      navigator.serviceWorker.register('sw.js')
+        .then((reg) => setupSwUpdateWatcher(reg))
+        .catch(() => {}));
   }
 
   document.addEventListener('DOMContentLoaded', init);
