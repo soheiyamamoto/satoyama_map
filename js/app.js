@@ -760,18 +760,33 @@
   // であって「更新」ではないため無視する（誤ってバナーを出さないためのガード）。
   let swUpdateArmed = !!navigator.serviceWorker.controller;
   let swUpdatePending = false;
+  // バナーをフォアグラウンドで一度でも表示できたか。
+  // controllerchangeがバックグラウンド中に発火した場合、ユーザーは
+  // まだバナーを一度も見ていないため、次にvisibleへ戻った瞬間に
+  // 即リロードすると「気づかないまま再読み込みされた」体験になる。
+  // その復帰では表示するだけに留め、確認済みにしてから反映対象にする。
+  let bannerAcknowledged = false;
 
   function setupSwUpdateWatcher(reg) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!swUpdateArmed) { swUpdateArmed = true; return; }
       swUpdatePending = true;
       $('update-banner').classList.remove('hidden');
+      // 検知した瞬間フォアグラウンドで見ているなら、その場でバナーが
+      // 目に入るため確認済み扱いにする（従来通り即反映の対象になる）。
+      if (!document.hidden) bannerAcknowledged = true;
     });
 
     const checkForUpdate = () => reg.update().catch(() => {});
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) return;
       checkForUpdate();
+      if (swUpdatePending && !bannerAcknowledged) {
+        // バックグラウンド中に検知された更新を、この復帰で初めて見せる。
+        // このタイミングではまだ反映せず、次の復帰かタップから対象にする。
+        bannerAcknowledged = true;
+        return;
+      }
       applyPendingUpdateIfSafe();
     });
     setInterval(checkForUpdate, 30 * 60 * 1000);
