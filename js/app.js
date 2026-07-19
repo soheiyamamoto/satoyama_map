@@ -421,6 +421,8 @@
   // UI バインド
   // =====================================================================
   function bindUI() {
+    $('btn-help').addEventListener('click', () => openSheet('help-sheet'));
+
     $('btn-locate').addEventListener('click', () => {
       if (meMarker) { setFollowing(true); map.setView(meMarker.getLatLng(), Math.max(map.getZoom(), 16)); }
       else toast('現在地をまだ取得できていません');

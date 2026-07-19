@@ -103,7 +103,7 @@ html, body {
 }
 .finder.too-wide .finder-info { background: var(--red); }
 
-/* ===== 右下 FAB（現在地に戻る／里道モード） ===== */
+/* ===== 右下 FAB（ヘルプ／現在地に戻る／里道モード／地形） ===== */
 .fab-stack {
   position: absolute; right: 14px; z-index: 900;
   bottom: calc(var(--safe-bottom) + 96px);
@@ -205,6 +205,10 @@ html, body {
   color: var(--red); font-size: 20px; flex: 0 0 auto; cursor: pointer;
 }
 .list-empty { text-align: center; color: #999; padding: 40px 0; font-size: 15px; }
+
+/* ===== ヘルプ一覧 ===== */
+.help-list { margin: 0 0 18px; padding-left: 20px; font-size: 15px; line-height: 1.7; }
+.help-list li { margin-bottom: 12px; }
 
 /* ===== 進捗バー ===== */
 .progress-wrap { margin: 14px 0; }
