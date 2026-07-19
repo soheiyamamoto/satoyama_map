@@ -41,6 +41,9 @@
 
   <!-- 右下の主要操作ボタン群 -->
   <div class="fab-stack">
+    <button id="btn-help" class="fab fab-help" aria-label="ヘルプ" title="ヘルプ">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm.9 15.5h-1.8v-1.8h1.8ZM14.6 10c-.3.5-.7.9-1.3 1.4-.6.5-1 .9-1.1 1.2-.1.2-.2.5-.2.9h-1.7c0-.6.1-1.1.3-1.5.2-.4.6-.9 1.2-1.4.4-.4.7-.7.9-1 .2-.3.3-.6.3-1 0-.5-.2-.9-.5-1.2-.3-.3-.8-.4-1.4-.4-.6 0-1 .2-1.4.5-.3.3-.5.8-.5 1.4H8.3c0-1.1.4-2 1.1-2.6.7-.6 1.6-.9 2.8-.9 1.2 0 2.1.3 2.8.9.7.6 1 1.4 1 2.3 0 .5-.1 1-.4 1.4Z"/></svg>
+    </button>
     <button id="btn-locate" class="fab fab-locate" aria-label="現在地に戻る" title="現在地に戻る">
       <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9 3h-2.06A7 7 0 0 0 13 5.06V3h-2v2.06A7 7 0 0 0 5.06 11H3v2h2.06A7 7 0 0 0 11 18.94V21h2v-2.06A7 7 0 0 0 18.94 13H21v-2Zm-9 6a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z"/></svg>
     </button>
@@ -112,6 +115,27 @@
       <button id="save-start" class="action action-primary full">この範囲を保存する</button>
       <button id="save-cancel" class="action full hidden">中止する</button>
       <p class="sheet-note">枠内の地図（ズーム15〜18）を端末に保存します。広すぎる場合は地図を拡大してください。</p>
+    </div>
+  </div>
+
+  <!-- ===== ヘルプパネル ===== -->
+  <div id="help-sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-label="ヘルプ">
+    <div class="sheet-panel sheet-tall">
+      <div class="sheet-head">
+        <h2>ヘルプ</h2>
+        <button class="sheet-close" data-close="help-sheet" aria-label="閉じる">✕</button>
+      </div>
+      <ul class="help-list">
+        <li><strong>この地図について</strong>: 里山の地番（土地の境界線）を表示する地図です。地番と地番の境目にある里道（法定外の小道）の調査に使えます</li>
+        <li><strong>現在地に戻る</strong>: GPSで取得した自分の位置に地図を戻します。以後は地図が自動で位置に追従します（位置情報の許可が必要です）</li>
+        <li><strong>里道モード</strong>: 地番の塗りを濃くして、地番と地番の間の隙間（里道の可能性がある場所）を見やすくします</li>
+        <li><strong>地形</strong>: 尾根や谷の陰影を地図に重ねて、地形の起伏を確認しやすくします</li>
+        <li><strong>メモを追加</strong>: 気づいたことをその場で記録します（分かれ道・倒木・水場などのボタン、または自由入力）</li>
+        <li><strong>メモ一覧</strong>: これまでに記録したメモを一覧で確認したり、地図上で開いたり、削除したりできます</li>
+        <li><strong>地図を保存</strong>: 電波が入らない場所でも使えるよう、表示中の範囲の地図データをあらかじめ端末に保存します</li>
+        <li><strong>画面上部の表示</strong>: 操作するものではなく状態のお知らせです。「オンライン」「オフライン」は通信状況、「GPS取得中」「GPS良好」「GPS誤差±◯m」「GPS許可なし」「GPSタイムアウト」「GPS取得失敗」「GPS非対応」はGPSの取得状況を示します</li>
+      </ul>
+      <button class="action action-primary full" data-close="help-sheet">閉じる</button>
     </div>
   </div>
 
