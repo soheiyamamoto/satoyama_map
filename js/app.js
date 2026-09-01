@@ -468,17 +468,19 @@
   // =====================================================================
   const MEMO_ICONS = { '分かれ道': '🔀', '倒木あり': '🌲', '水場（水源）': '💧' };
   function memoIcon(memo) { return memo.icon || MEMO_ICONS[memo.text] || '✏️'; }
+  function memoPinIcon(memo) {
+    return L.divIcon({
+      className: '', iconSize: [34, 34], iconAnchor: [17, 30],
+      html: `<div class="memo-pin">${memoIcon(memo)}</div>`,
+    });
+  }
 
   async function renderMemoMarkers() {
     memoMarkers.forEach((m) => map.removeLayer(m));
     memoMarkers.clear();
     const memos = await DB.allMemos();
     memos.forEach((memo) => {
-      const icon = L.divIcon({
-        className: '', iconSize: [34, 34], iconAnchor: [17, 30],
-        html: `<div class="memo-pin">📍</div>`,
-      });
-      const m = L.marker([memo.lat, memo.lng], { icon }).addTo(map);
+      const m = L.marker([memo.lat, memo.lng], { icon: memoPinIcon(memo) }).addTo(map);
       m.bindPopup(popupHtml(memo));
       memoMarkers.set(memo.id, m);
     });
@@ -519,10 +521,17 @@
     document.querySelectorAll('.memo-btn').forEach((b) =>
       b.addEventListener('click', () => onMemoTemplate(b.getAttribute('data-memo'), b.getAttribute('data-icon'))));
     $('memo-other-save').addEventListener('click', saveOtherMemo);
+    $('memo-place-gps').addEventListener('click', () => setMemoPlace('gps'));
+    $('memo-place-center').addEventListener('click', () => setMemoPlace('center'));
+    $('memo-place-tap').addEventListener('click', startMemoPlaceTap);
+    $('place-mask').addEventListener('click', onMemoPlaceTap);
+    $('place-cancel').addEventListener('click', cancelMemoPlaceTap);
+    $('list-export').addEventListener('click', exportMemos);
 
     // 保存
     $('save-start').addEventListener('click', startSave);
     $('save-cancel').addEventListener('click', () => { saving = false; });
+    $('save-clear').addEventListener('click', clearSavedMap);
   }
 
   function openSheet(id) { $(id).classList.remove('hidden'); }
@@ -535,16 +544,79 @@
   // メモ追加
   // =====================================================================
   let pendingCoord = null;
+  let placingMemo = false;
+  let keepTapPlace = false;
 
   function openMemoSheet() {
-    // メモ地点は「現在地優先、なければ地図中心」
-    const ll = meMarker ? meMarker.getLatLng() : map.getCenter();
-    pendingCoord = { lat: ll.lat, lng: ll.lng, source: meMarker ? 'gps' : 'center' };
-    $('memo-coord').textContent =
-      `${pendingCoord.source === 'gps' ? '現在地' : '地図中央'}：${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
     $('memo-other-area').classList.add('hidden');
     $('memo-text').value = '';
+    if (keepTapPlace && pendingCoord && pendingCoord.source === 'tap') {
+      keepTapPlace = false;
+      updateMemoPlaceUi();
+    } else {
+      setMemoPlace(meMarker ? 'gps' : 'center');
+    }
     openSheet('memo-sheet');
+  }
+
+  function setMemoPlace(source) {
+    if (source === 'gps') {
+      if (!meMarker) {
+        toast('現在地をまだ取得できていません');
+        if (!pendingCoord) setMemoPlace('center');
+        else updateMemoPlaceUi();
+        return;
+      }
+      const ll = meMarker.getLatLng();
+      pendingCoord = { lat: ll.lat, lng: ll.lng, source: 'gps' };
+    } else if (source === 'center') {
+      const ll = map.getCenter();
+      pendingCoord = { lat: ll.lat, lng: ll.lng, source: 'center' };
+    }
+    updateMemoPlaceUi();
+  }
+
+  function updateMemoPlaceUi() {
+    if (!pendingCoord) return;
+    const label = pendingCoord.source === 'gps' ? '現在地'
+      : pendingCoord.source === 'tap' ? 'タップした位置' : '地図の中央';
+    $('memo-coord').textContent =
+      `${label}：${pendingCoord.lat.toFixed(6)}, ${pendingCoord.lng.toFixed(6)}`;
+    $('memo-place-gps').setAttribute('aria-pressed', pendingCoord.source === 'gps' ? 'true' : 'false');
+    $('memo-place-center').setAttribute('aria-pressed', pendingCoord.source === 'center' ? 'true' : 'false');
+    $('memo-place-tap').setAttribute('aria-pressed', pendingCoord.source === 'tap' ? 'true' : 'false');
+  }
+
+  function startMemoPlaceTap() {
+    closeSheet('memo-sheet');
+    placingMemo = true;
+    $('place-mask').classList.remove('hidden');
+    $('place-hint').classList.remove('hidden');
+  }
+
+  function onMemoPlaceTap(e) {
+    if (!placingMemo || !map) return;
+    const rect = $('map').getBoundingClientRect();
+    const pt = L.point(e.clientX - rect.left, e.clientY - rect.top);
+    const ll = map.containerPointToLatLng(pt);
+    pendingCoord = { lat: ll.lat, lng: ll.lng, source: 'tap' };
+    keepTapPlace = true;
+    stopMemoPlaceTap();
+    openMemoSheet();
+  }
+
+  function cancelMemoPlaceTap() {
+    stopMemoPlaceTap();
+    if (!pendingCoord) setMemoPlace(meMarker ? 'gps' : 'center');
+    else updateMemoPlaceUi();
+    $('memo-other-area').classList.add('hidden');
+    openSheet('memo-sheet');
+  }
+
+  function stopMemoPlaceTap() {
+    placingMemo = false;
+    $('place-mask').classList.add('hidden');
+    $('place-hint').classList.add('hidden');
   }
 
   function onMemoTemplate(text, icon) {
@@ -572,9 +644,7 @@
     };
     const id = await DB.addMemo(memo);
     memo.id = id;
-    // 即時にピンを追加
-    const lic = L.divIcon({ className: '', iconSize: [34, 34], iconAnchor: [17, 30], html: `<div class="memo-pin">📍</div>` });
-    const m = L.marker([memo.lat, memo.lng], { icon: lic }).addTo(map);
+    const m = L.marker([memo.lat, memo.lng], { icon: memoPinIcon(memo) }).addTo(map);
     m.bindPopup(popupHtml(memo));
     memoMarkers.set(id, m);
     $('list-count').textContent = memoMarkers.size;
@@ -589,6 +659,7 @@
     const memos = await DB.allMemos();
     const body = $('list-body');
     $('list-count').textContent = memos.length;
+    $('list-export').classList.toggle('hidden', !memos.length);
     if (!memos.length) {
       body.innerHTML = '<div class="list-empty">まだメモはありません。<br>「メモを追加」から記録できます。</div>';
     } else {
@@ -624,6 +695,42 @@
     openSheet('list-sheet');
   }
 
+  async function exportMemos() {
+    const memos = await DB.allMemos();
+    if (!memos.length) { toast('書き出すメモがありません'); return; }
+    const geo = {
+      type: 'FeatureCollection',
+      features: memos.map((m) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [m.lng, m.lat] },
+        properties: {
+          text: m.text,
+          icon: memoIcon(m),
+          createdAt: new Date(m.createdAt).toISOString(),
+          coordSource: m.coordSource || '',
+        },
+      })),
+    };
+    const json = JSON.stringify(geo, null, 2);
+    const name = `satoyama-memos-${new Date().toISOString().slice(0, 10)}.geojson`;
+    const blob = new Blob([json], { type: 'application/json' });
+    const file = new File([blob], name, { type: 'application/json' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: '里山地図のメモ' });
+        return;
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('メモを書き出しました');
+  }
+
   // =====================================================================
   // 地図保存（ファインダー方式・自動ズーム・過負荷ブロック）
   // =====================================================================
@@ -632,7 +739,9 @@
     $('save-progress-wrap').classList.add('hidden');
     $('save-cancel').classList.add('hidden');
     $('save-start').classList.remove('hidden');
+    $('save-clear').classList.remove('hidden');
     updateFinderInfo();
+    refreshSaveStorage();
     openSheet('save-sheet');
   }
 
@@ -692,29 +801,82 @@
     }
   }
 
+  async function refreshSaveStorage() {
+    const el = $('save-storage');
+    if (!el) return;
+    try {
+      const n = await DB.countTiles();
+      const est = await DB.estimate();
+      const mb = est && est.usage ? (est.usage / (1024 * 1024)).toFixed(1) : null;
+      el.textContent = mb
+        ? `保存済みの地図：${n} 枚　／　このアプリの使用量：約 ${mb} MB（目安）`
+        : `保存済みの地図：${n} 枚`;
+      $('save-clear').disabled = n === 0;
+      $('save-clear').style.opacity = n === 0 ? .5 : 1;
+    } catch (_) {
+      el.textContent = '保存済みの地図：確認できませんでした';
+    }
+  }
+
+  async function clearSavedMap() {
+    if (saving) return;
+    const n = await DB.countTiles();
+    if (!n) { toast('削除する地図はありません'); return; }
+    if (!confirm('保存した地図を削除しますか？電波のない場所では、保存した範囲の地図が出なくなります。')) return;
+    await DB.clearTiles();
+    if (baseLayer) baseLayer.redraw();
+    await refreshSaveStorage();
+    toast('保存した地図を削除しました');
+  }
+
+  async function ensureParcelIndex() {
+    if (parcelIndex) return;
+    try {
+      const r = await fetch(PARCEL_DIR + 'index.json');
+      const idx = r.ok ? await r.json() : null;
+      if (idx && idx.mode === 'ondemand' && Array.isArray(idx.files)) {
+        parcelIndex = idx;
+        parcelMinZoom = idx.minZoom || 15;
+      }
+    } catch (_) { /* 地番の先読みは省略して地図保存だけ進める */ }
+  }
+
+  function parcelFilesForBounds(bounds) {
+    if (!parcelIndex || !Array.isArray(parcelIndex.files)) return [];
+    return parcelIndex.files.filter((fi) => Array.isArray(fi.bbox) && bboxIntersects(fi.bbox, bounds));
+  }
+
   async function startSave() {
     if (saving) return;
-    const tiles = tilesForBounds(finderBounds());
+    const bounds = finderBounds();
+    const tiles = tilesForBounds(bounds);
     if (tiles.length > MAX_TILES) { toast('範囲が広すぎます'); return; }
     if (!navigator.onLine) { toast('保存にはオンライン接続が必要です'); return; }
 
+    await ensureParcelIndex();
+    const parcelFiles = parcelFilesForBounds(bounds);
+
     saving = true;
     $('save-start').classList.add('hidden');
+    $('save-clear').classList.add('hidden');
     $('save-cancel').classList.remove('hidden');
     $('save-progress-wrap').classList.remove('hidden');
     hideFinder();
 
-    const total = tiles.length;
-    let done = 0, failed = 0;
+    const tileTotal = tiles.length;
+    const parcelTotal = parcelFiles.length;
+    const total = tileTotal + parcelTotal;
+    let done = 0, tileFailed = 0, parcelFailed = 0;
     const bar = $('save-progress-bar');
     const txt = $('save-progress-text');
     const setProg = () => {
-      bar.style.width = (done / total * 100).toFixed(1) + '%';
-      txt.textContent = `${done} / ${total} 枚`;
+      bar.style.width = total ? (done / total * 100).toFixed(1) + '%' : '100%';
+      txt.textContent = parcelTotal
+        ? `${done} / ${total}（地図 ${tileTotal} 枚・地番 ${parcelTotal} ファイル）`
+        : `${done} / ${tileTotal} 枚`;
     };
     setProg();
 
-    // 4並列でダウンロード
     const queue = tiles.slice();
     const worker = async () => {
       while (queue.length && saving) {
@@ -725,20 +887,46 @@
             const url = GSI_URL.replace('{z}', t.z).replace('{x}', t.x).replace('{y}', t.y);
             const res = await fetch(url, { mode: 'cors' });
             if (res.ok) { await DB.putTile(key, await res.blob()); }
-            else failed++;
+            else tileFailed++;
           }
-        } catch (_) { failed++; }
+        } catch (_) { tileFailed++; }
         done++; setProg();
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
 
+    const pqueue = parcelFiles.slice();
+    const pworker = async () => {
+      while (pqueue.length && saving) {
+        const fi = pqueue.shift();
+        try {
+          const r = await fetch(PARCEL_DIR + fi.file);
+          if (!r.ok) parcelFailed++;
+          else await r.arrayBuffer();
+        } catch (_) { parcelFailed++; }
+        done++; setProg();
+      }
+    };
+    if (saving) await Promise.all([pworker(), pworker(), pworker(), pworker()]);
+
+    const cancelled = !saving;
     saving = false;
     $('save-cancel').classList.add('hidden');
     $('save-start').classList.remove('hidden');
+    $('save-clear').classList.remove('hidden');
     baseLayer.redraw();
+    await refreshSaveStorage();
     closeSheet('save-sheet');
-    toast(failed ? `保存完了（${total - failed}枚成功・${failed}枚失敗）` : `地図を保存しました（${total}枚）`);
+    if (cancelled) { toast('保存を中止しました'); return; }
+    const tileOk = tileTotal - tileFailed;
+    const parcelOk = parcelTotal - parcelFailed;
+    if (tileFailed || parcelFailed) {
+      toast(`保存完了（地図 ${tileOk}/${tileTotal} 枚、地番 ${parcelOk}/${parcelTotal} ファイル）`);
+    } else if (parcelTotal) {
+      toast(`地図と地番を保存しました（地図 ${tileTotal} 枚・地番 ${parcelTotal} ファイル）`);
+    } else {
+      toast(`地図を保存しました（${tileTotal}枚）`);
+    }
   }
 
   // =====================================================================
@@ -879,6 +1067,7 @@
   function applyPendingUpdateIfSafe() {
     if (!swUpdatePending) return;
     if (document.querySelector('.sheet:not(.hidden)')) return;
+    if (placingMemo) return;
     if (following) return;
     location.reload();
   }
