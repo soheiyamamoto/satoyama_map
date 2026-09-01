@@ -112,7 +112,10 @@
     map.on('moveend zoomend', () => {
       saveLastView();
       if (!$('finder').classList.contains('hidden')) updateFinderInfo();
+      updateZoomHint();
+      applyLabelsToAll();
     });
+    updateZoomHint();
     // ユーザーが地図をドラッグしたら追従を解除
     map.on('dragstart', () => setFollowing(false));
 
@@ -149,6 +152,7 @@
   const PARCEL_FILL_NORMAL = 0.06;
   const PARCEL_FILL_SATOMICHI = 0.35;   // 里道モード: 筆を面として強調し、塗られない隙間を浮かび上がらせる
   const PARCEL_DIR = 'data/parcels/';
+  const LABEL_MIN_ZOOM = 17;           // これ以上で地番番号を常時表示（それ未満はタップで確認）
 
   // 現在のモードを反映したスタイルを返す（features引数はLeafletのstyle関数仕様に合わせるが未使用）
   function parcelStyle() {
@@ -160,20 +164,82 @@
   let parcelIndex = null;          // index.json の中身（ondemand時）
   let parcelMinZoom = 15;
 
-  function parcelTooltip(f, layer) {
-    const p = f.properties || {};
-    const label = p.chiban || p.地番 || p.筆ID || '';
-    if (label) {
-      layer.bindTooltip(String(label), {
-        permanent: false, direction: 'center', className: 'parcel-label',
-      });
-    }
+  function parcelProps(f) {
+    const p = (f && f.properties) || {};
+    return {
+      chiban: p.chiban || p.地番 || p.筆ID || '',
+      oaza: p.大字名 || p.oaza || '',
+    };
+  }
+
+  function parcelPopupHtml(f) {
+    const { chiban, oaza } = parcelProps(f);
+    const title = chiban ? escapeHtml(String(chiban)) : '地番なし';
+    const oazaLine = oaza
+      ? `<div class="parcel-popup-oaza">${escapeHtml(String(oaza))}</div>`
+      : '';
+    return `<div class="parcel-popup">
+      <div class="parcel-popup-chiban">${title}</div>
+      ${oazaLine}
+    </div>`;
+  }
+
+  function labelsShouldShow() {
+    return !!(map && map.getZoom() >= LABEL_MIN_ZOOM);
+  }
+
+  // 常時ラベルは拡大時かつ画面内の、ある程度大きい筆だけ DOM に載せる
+  function applyLabelsToLayer(layer) {
+    if (!layer || !layer.eachLayer || !map) return;
+    const show = labelsShouldShow();
+    const view = show ? map.getBounds() : null;
+    layer.eachLayer((l) => {
+      if (show && shouldShowParcelLabel(l, view)) {
+        if (l.getTooltip()) return;
+        const chiban = parcelProps(l.feature).chiban;
+        if (!chiban) return;
+        l.bindTooltip(String(chiban), {
+          permanent: true,
+          direction: 'center',
+          className: 'parcel-label',
+          interactive: false,
+        });
+      } else if (l.getTooltip()) {
+        l.unbindTooltip();
+      }
+    });
+  }
+
+  function shouldShowParcelLabel(layer, view) {
+    if (!layer.getBounds) return false;
+    const b = layer.getBounds();
+    if (!b.isValid() || !view.intersects(b)) return false;
+    const sw = map.latLngToContainerPoint(b.getSouthWest());
+    const ne = map.latLngToContainerPoint(b.getNorthEast());
+    const w = Math.abs(ne.x - sw.x);
+    const h = Math.abs(ne.y - sw.y);
+    return w >= 28 && h >= 16;
+  }
+
+  function applyLabelsToAll() {
+    if (parcelLayer) applyLabelsToLayer(parcelLayer);
+    parcelTiles.forEach((t) => applyLabelsToLayer(t.layer));
+  }
+
+  function updateZoomHint() {
+    const el = $('zoom-hint');
+    if (!el || !map) return;
+    el.classList.toggle('hidden', map.getZoom() >= parcelMinZoom);
+  }
+
+  function onEachParcel(f, layer) {
+    layer.bindPopup(parcelPopupHtml(f), { className: 'parcel-popup-wrap', maxWidth: 240 });
   }
 
   function makeParcelLayer() {
     // style に関数を渡すことで、後からondemandで読み込まれるタイルにも
     // その時点の satomichiMode が反映される（追加時に都度呼び出される）。
-    return L.geoJSON(null, { style: parcelStyle, onEachFeature: parcelTooltip, renderer: parcelRenderer });
+    return L.geoJSON(null, { style: parcelStyle, onEachFeature: onEachParcel, renderer: parcelRenderer });
   }
 
   // 里道モード切り替え時、既に読み込み済みの全レイヤーへ即座にスタイルを反映
@@ -208,6 +274,7 @@
           // (A) オンデマンド方式
           parcelIndex = idx;
           parcelMinZoom = idx.minZoom || 15;
+          updateZoomHint();
 
           // [1] 表示が変わるたびに更新。move も購読して発火漏れに備える（[4]）。
           map.on('moveend zoomend', updateParcelTiles);
@@ -260,6 +327,7 @@
       if (map.getZoom() < parcelMinZoom) {
         parcelTiles.forEach((t) => map.removeLayer(t.layer));
         parcelTiles.clear();
+        updateZoomHint();
         return;
       }
 
@@ -288,7 +356,10 @@
             if (geo && Array.isArray(geo.features)) {
               geo.features = geo.features.filter(hasUsableGeometry);
             }
-            if (geo) layer.addData(geo);
+            if (geo) {
+              layer.addData(geo);
+              applyLabelsToLayer(layer);
+            }
           })
           .catch(() => {
             // [3] 失敗したら確実に登録解除。次回の更新で再取得の機会を残す。
@@ -312,7 +383,10 @@
           if (geo && Array.isArray(geo.features)) {
             geo.features = geo.features.filter(hasUsableGeometry);
           }
-          if (geo) layer.addData(geo);
+          if (geo) {
+            layer.addData(geo);
+            applyLabelsToLayer(layer);
+          }
         })
         .catch(() => { /* 一部欠落しても他は表示 */ });
     });
@@ -733,7 +807,9 @@
   //   使ったことのない人に「新しくなりました」は見せない。
   // =====================================================================
   function loadWhatsNew() {
-    fetch('version.json').then((r) => (r.ok ? r.json() : null)).then((info) => {
+    // cache: 'no-store' は SW 非制御時（初回や localhost）のブラウザHTTPキャッシュを避ける。
+    // SW 制御下では install 時に SHELL へ version.json が入り直るため、リロード後は新版が返る。
+    fetch('version.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((info) => {
       if (!info || !info.version) return;
       let last = null;
       try { last = localStorage.getItem('lastSeenVersion'); } catch (_) {}

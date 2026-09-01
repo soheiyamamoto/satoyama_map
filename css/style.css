@@ -103,26 +103,72 @@ html, body {
 }
 .finder.too-wide .finder-info { background: var(--red); }
 
-/* ===== 右下 FAB（ヘルプ／現在地に戻る／里道モード／地形） ===== */
-.fab-stack {
-  position: absolute; right: 14px; z-index: 900;
+/* ===== 縮小時ヒント（地番が出ないズーム） ===== */
+.zoom-hint {
+  position: absolute; top: calc(var(--safe-top) + 52px); left: 56px; right: 8px;
+  z-index: 850;
+  background: rgba(0, 0, 0, .75); color: #fff;
+  border-radius: 12px; padding: 8px 14px;
+  font-size: 13px; font-weight: 700; text-align: center;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+
+/* ===== 左下の図例 ===== */
+.map-legend {
+  position: absolute; left: 8px; z-index: 900;
   bottom: calc(var(--safe-bottom) + 96px);
-  display: flex; flex-direction: column; gap: 12px;
+  background: rgba(255, 255, 255, .94);
+  border-radius: 10px; padding: 8px 10px;
+  font-size: 12px; font-weight: 700;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  line-height: 1.45;
+}
+.legend-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.legend-row + .legend-row { margin-top: 4px; }
+.legend-line {
+  width: 18px; height: 0; border-top: 3px solid #d84315; flex: 0 0 auto;
+}
+.legend-gap {
+  width: 18px; height: 10px; flex: 0 0 auto;
+  background: repeating-linear-gradient(90deg, #ffccbc 0 4px, transparent 4px 7px);
+  border: 1px dashed #d84315;
+}
+
+/* ===== 右下 FAB（ヘルプ／現在地／里道／地形） ===== */
+.fab-stack {
+  position: absolute; right: 10px; z-index: 900;
+  bottom: calc(var(--safe-bottom) + 96px);
+  display: flex; flex-direction: column; gap: 8px;
+  align-items: center;
 }
 .fab {
-  width: var(--tap); height: var(--tap);
-  border-radius: 50%; border: none;
-  background: #fff; color: var(--blue);
-  box-shadow: var(--shadow);
-  display: flex; align-items: center; justify-content: center;
+  width: 56px; height: auto; padding: 0;
+  border: none; border-radius: 0; background: transparent;
+  color: var(--blue);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
   cursor: pointer;
 }
-.fab:active { transform: scale(.94); }
-.fab-locate.active { background: var(--blue); color: #fff; }
-.fab-satomichi { color: var(--amber); }
-.fab-satomichi.active { background: var(--amber); color: #fff; }
-.fab-terrain { color: var(--green-light); }
-.fab-terrain.active { background: var(--green-light); color: #fff; }
+.fab-ico {
+  width: var(--tap); height: var(--tap);
+  border-radius: 50%;
+  background: #fff; box-shadow: var(--shadow);
+  display: flex; align-items: center; justify-content: center;
+}
+.fab-cap {
+  font-size: 11px; font-weight: 700; line-height: 1.2;
+  color: var(--ink);
+  text-shadow: 0 0 4px #fff, 0 0 4px #fff, 0 1px 2px #fff;
+}
+.fab:active .fab-ico { transform: scale(.94); }
+.fab-locate.active .fab-ico { background: var(--blue); color: #fff; }
+.fab-satomichi .fab-ico { color: var(--amber); }
+.fab-satomichi.active .fab-ico { background: var(--amber); color: #fff; }
+.fab-terrain .fab-ico { color: var(--green-light); }
+.fab-terrain.active .fab-ico { background: var(--green-light); color: #fff; }
 
 /* ===== 下部アクションバー ===== */
 .actionbar {
@@ -256,12 +302,15 @@ img.tile-missing {
     repeating-linear-gradient(45deg, #e3e7e9 0 10px, #d7dcde 10px 20px);
 }
 
-/* 地番ラベル（GeoJSONポリゴンの地番番号） */
+/* 地番ラベル（GeoJSONポリゴンの地番番号・拡大時のみ常時表示） */
 .parcel-label {
   background: rgba(255,255,255,.82); border: none; box-shadow: none;
   color: #bf360c; font-size: 11px; font-weight: 700; padding: 1px 4px;
+  pointer-events: none;
 }
 .parcel-label::before { display: none; }
+.parcel-popup-chiban { font-size: 16px; font-weight: 700; color: #bf360c; }
+.parcel-popup-oaza { font-size: 13px; color: #555; margin-top: 4px; }
 
 /* Leaflet のズーム/帰属表示を控えめに（引き算設計） */
 .leaflet-control-attribution { font-size: 10px; opacity: .75; }
