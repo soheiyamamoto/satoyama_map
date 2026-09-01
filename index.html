@@ -33,25 +33,38 @@
     <span>新しいバージョンがあります。タップで更新</span>
   </div>
 
+  <!-- 縮小時ヒント：地番レイヤーが出ないズームのときだけ表示 -->
+  <div id="zoom-hint" class="zoom-hint hidden" role="status">拡大すると地番が表示されます</div>
+
   <!-- 範囲指定（ファインダー）枠：保存モード時のみ表示 -->
   <div id="finder" class="finder hidden" aria-hidden="true">
     <div class="finder-box"></div>
     <div id="finder-info" class="finder-info">範囲を枠に合わせてください</div>
   </div>
 
+  <!-- 左下の図例（地番の見方） -->
+  <div id="map-legend" class="map-legend" aria-hidden="true">
+    <div class="legend-row"><span class="legend-line"></span>地番の境界</div>
+    <div class="legend-row"><span class="legend-gap"></span>隙間は里道の候補</div>
+  </div>
+
   <!-- 右下の主要操作ボタン群 -->
   <div class="fab-stack">
     <button id="btn-help" class="fab fab-help" aria-label="ヘルプ" title="ヘルプ">
-      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm.9 15.5h-1.8v-1.8h1.8ZM14.6 10c-.3.5-.7.9-1.3 1.4-.6.5-1 .9-1.1 1.2-.1.2-.2.5-.2.9h-1.7c0-.6.1-1.1.3-1.5.2-.4.6-.9 1.2-1.4.4-.4.7-.7.9-1 .2-.3.3-.6.3-1 0-.5-.2-.9-.5-1.2-.3-.3-.8-.4-1.4-.4-.6 0-1 .2-1.4.5-.3.3-.5.8-.5 1.4H8.3c0-1.1.4-2 1.1-2.6.7-.6 1.6-.9 2.8-.9 1.2 0 2.1.3 2.8.9.7.6 1 1.4 1 2.3 0 .5-.1 1-.4 1.4Z"/></svg>
+      <span class="fab-ico"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm.9 15.5h-1.8v-1.8h1.8ZM14.6 10c-.3.5-.7.9-1.3 1.4-.6.5-1 .9-1.1 1.2-.1.2-.2.5-.2.9h-1.7c0-.6.1-1.1.3-1.5.2-.4.6-.9 1.2-1.4.4-.4.7-.7.9-1 .2-.3.3-.6.3-1 0-.5-.2-.9-.5-1.2-.3-.3-.8-.4-1.4-.4-.6 0-1 .2-1.4.5-.3.3-.5.8-.5 1.4H8.3c0-1.1.4-2 1.1-2.6.7-.6 1.6-.9 2.8-.9 1.2 0 2.1.3 2.8.9.7.6 1 1.4 1 2.3 0 .5-.1 1-.4 1.4Z"/></svg></span>
+      <span class="fab-cap">ヘルプ</span>
     </button>
     <button id="btn-locate" class="fab fab-locate" aria-label="現在地に戻る" title="現在地に戻る">
-      <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9 3h-2.06A7 7 0 0 0 13 5.06V3h-2v2.06A7 7 0 0 0 5.06 11H3v2h2.06A7 7 0 0 0 11 18.94V21h2v-2.06A7 7 0 0 0 18.94 13H21v-2Zm-9 6a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z"/></svg>
+      <span class="fab-ico"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm9 3h-2.06A7 7 0 0 0 13 5.06V3h-2v2.06A7 7 0 0 0 5.06 11H3v2h2.06A7 7 0 0 0 11 18.94V21h2v-2.06A7 7 0 0 0 18.94 13H21v-2Zm-9 6a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z"/></svg></span>
+      <span class="fab-cap">現在地</span>
     </button>
     <button id="btn-satomichi" class="fab fab-satomichi" aria-label="里道モード" aria-pressed="false" title="里道モード（筆の塗りを強調）">
-      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M4 21 10 3h1.5l2 8.5L15.5 3H17l6 18h-2.1l-1.5-4.6h-4.9L13 21h-2l-1-4.6H5.1L3.5 21H4Zm5.7-6.6h3.9L11.6 8l-1.9 6.4Z"/></svg>
+      <span class="fab-ico"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M4 21 10 3h1.5l2 8.5L15.5 3H17l6 18h-2.1l-1.5-4.6h-4.9L13 21h-2l-1-4.6H5.1L3.5 21H4Zm5.7-6.6h3.9L11.6 8l-1.9 6.4Z"/></svg></span>
+      <span class="fab-cap">里道</span>
     </button>
     <button id="btn-terrain" class="fab fab-terrain" aria-label="地形" aria-pressed="false" title="地形（陰影起伏図を重ねる）">
-      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M14 4 22 20H6L14 4Zm-6.5 8.2L9.8 20H2l5.5-7.8ZM14 8.4 19.3 18h-4.1l-2-4-1.7 3-1.6-2.6L14 8.4Z"/></svg>
+      <span class="fab-ico"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M14 4 22 20H6L14 4Zm-6.5 8.2L9.8 20H2l5.5-7.8ZM14 8.4 19.3 18h-4.1l-2-4-1.7 3-1.6-2.6L14 8.4Z"/></svg></span>
+      <span class="fab-cap">地形</span>
     </button>
   </div>
 
@@ -127,8 +140,10 @@
       </div>
       <ul class="help-list">
         <li><strong>この地図について</strong>: 里山の地番（土地の境界線）を表示する地図です。地番と地番の境目にある里道（法定外の小道）の調査に使えます</li>
-        <li><strong>現在地に戻る</strong>: GPSで取得した自分の位置に地図を戻します。以後は地図が自動で位置に追従します（位置情報の許可が必要です）</li>
-        <li><strong>里道モード</strong>: 地番の塗りを濃くして、地番と地番の間の隙間（里道の可能性がある場所）を見やすくします</li>
+        <li><strong>地番の見方</strong>: オレンジの線が地番の境界です。十分に拡大すると地番番号が地図上に表示されます。地番をタップすると大字名も確認できます。縮小しすぎると地番は表示されません</li>
+        <li><strong>画面左下の図例</strong>: 「地番の境界」と「隙間は里道の候補」の見方を示しています</li>
+        <li><strong>現在地</strong>: GPSで取得した自分の位置に地図を戻します。以後は地図が自動で位置に追従します（位置情報の許可が必要です）</li>
+        <li><strong>里道</strong>: 地番の塗りを濃くして、地番と地番の間の隙間（里道の可能性がある場所）を見やすくします</li>
         <li><strong>地形</strong>: 尾根や谷の陰影を地図に重ねて、地形の起伏を確認しやすくします</li>
         <li><strong>メモを追加</strong>: 気づいたことをその場で記録します（分かれ道・倒木・水場などのボタン、または自由入力）</li>
         <li><strong>メモ一覧</strong>: これまでに記録したメモを一覧で確認したり、地図上で開いたり、削除したりできます</li>
