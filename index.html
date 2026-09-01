@@ -81,12 +81,24 @@
     </button>
   </nav>
 
+  <!-- メモ位置の指定：地図をタップして決めるときの案内 -->
+  <div id="place-mask" class="place-mask hidden" aria-hidden="true"></div>
+  <div id="place-hint" class="place-hint hidden" role="status">
+    <p>メモする場所をタップしてください</p>
+    <button type="button" id="place-cancel" class="action">やめる</button>
+  </div>
+
   <!-- ===== メモ追加シート（定型文） ===== -->
   <div id="memo-sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-label="メモを追加">
     <div class="sheet-panel">
       <div class="sheet-head">
         <h2>この地点にメモ</h2>
         <button class="sheet-close" data-close="memo-sheet" aria-label="閉じる">✕</button>
+      </div>
+      <div class="memo-place" role="group" aria-label="記録する位置">
+        <button type="button" id="memo-place-gps" class="place-btn" aria-pressed="false">現在地</button>
+        <button type="button" id="memo-place-center" class="place-btn" aria-pressed="false">地図の中央</button>
+        <button type="button" id="memo-place-tap" class="place-btn" aria-pressed="false">地図をタップ</button>
       </div>
       <p class="sheet-sub" id="memo-coord">緯度・経度を取得中…</p>
       <div class="memo-grid">
@@ -110,6 +122,7 @@
         <button class="sheet-close" data-close="list-sheet" aria-label="閉じる">✕</button>
       </div>
       <div id="list-body" class="list-body"></div>
+      <button type="button" id="list-export" class="action full hidden">メモを書き出す</button>
     </div>
   </div>
 
@@ -125,9 +138,11 @@
         <div class="progress-track"><div id="save-progress-bar" class="progress-bar"></div></div>
         <p id="save-progress-text" class="progress-text">0 / 0 枚</p>
       </div>
+      <p class="sheet-note" id="save-storage">保存済みの地図を確認中…</p>
       <button id="save-start" class="action action-primary full">この範囲を保存する</button>
       <button id="save-cancel" class="action full hidden">中止する</button>
-      <p class="sheet-note">枠内の地図（ズーム15〜18）を端末に保存します。広すぎる場合は地図を拡大してください。</p>
+      <button type="button" id="save-clear" class="action full">保存した地図を削除</button>
+      <p class="sheet-note">枠内の地図（ズーム15〜18）と、その範囲の地番データを端末に保存します。広すぎる場合は地図を拡大してください。</p>
     </div>
   </div>
 
@@ -145,9 +160,9 @@
         <li><strong>現在地</strong>: GPSで取得した自分の位置に地図を戻します。以後は地図が自動で位置に追従します（位置情報の許可が必要です）</li>
         <li><strong>里道</strong>: 地番の塗りを濃くして、地番と地番の間の隙間（里道の可能性がある場所）を見やすくします</li>
         <li><strong>地形</strong>: 尾根や谷の陰影を地図に重ねて、地形の起伏を確認しやすくします</li>
-        <li><strong>メモを追加</strong>: 気づいたことをその場で記録します（分かれ道・倒木・水場などのボタン、または自由入力）</li>
-        <li><strong>メモ一覧</strong>: これまでに記録したメモを一覧で確認したり、地図上で開いたり、削除したりできます</li>
-        <li><strong>地図を保存</strong>: 電波が入らない場所でも使えるよう、表示中の範囲の地図データをあらかじめ端末に保存します</li>
+        <li><strong>メモを追加</strong>: 気づいたことをその場で記録します（分かれ道・倒木・水場などのボタン、または自由入力）。位置は「現在地」「地図の中央」「地図をタップ」から選べます</li>
+        <li><strong>メモ一覧</strong>: これまでに記録したメモを一覧で確認したり、地図上で開いたり、削除したりできます。「メモを書き出す」でファイルとして他のアプリに渡せます</li>
+        <li><strong>地図を保存</strong>: 電波が入らない場所でも使えるよう、枠内の地図と地番データをあらかじめ端末に保存します。保存済みの枚数は画面に表示され、不要になったら削除できます</li>
         <li><strong>画面上部の表示</strong>: 操作するものではなく状態のお知らせです。「オンライン」「オフライン」は通信状況、「GPS取得中」「GPS良好」「GPS誤差±◯m」「GPS許可なし」「GPSタイムアウト」「GPS取得失敗」「GPS非対応」はGPSの取得状況を示します</li>
       </ul>
       <button class="action action-primary full" data-close="help-sheet">閉じる</button>
